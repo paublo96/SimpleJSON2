@@ -44,213 +44,213 @@
  */
 JSONValue JSONValue::Parse(const char **data)
 {
-	// Is it a string?
-	if (**data == '"')
-	{
-		std::string str;
-		if (!JSON::ExtractString(&(++(*data)), str))
+    // Is it a string?
+    if (**data == '"')
+    {
+        std::string str;
+        if (!JSON::ExtractString(&(++(*data)), str))
             throw JSONException();
 
         return JSONValue(str);
-	}
+    }
 
-	// Is it a boolean?
-	else if ((simplejson_strnlen(*data, 4) && strncasecmp(*data, "true", 4) == 0) || (simplejson_strnlen(*data, 5) && strncasecmp(*data, "false", 5) == 0))
-	{
-		bool value = strncasecmp(*data, "true", 4) == 0;
-		(*data) += value ? 4 : 5;
-		return JSONValue(value);
-	}
+    // Is it a boolean?
+    else if ((simplejson_strnlen(*data, 4) && strncasecmp(*data, "true", 4) == 0) || (simplejson_strnlen(*data, 5) && strncasecmp(*data, "false", 5) == 0))
+    {
+        bool value = strncasecmp(*data, "true", 4) == 0;
+        (*data) += value ? 4 : 5;
+        return JSONValue(value);
+    }
 
-	// Is it a null?
-	else if (simplejson_strnlen(*data, 4) && strncasecmp(*data, "null", 4) == 0)
-	{
-		(*data) += 4;
-		return JSONValue();
-	}
+    // Is it a null?
+    else if (simplejson_strnlen(*data, 4) && strncasecmp(*data, "null", 4) == 0)
+    {
+        (*data) += 4;
+        return JSONValue();
+    }
 
-	// Is it a number?
-	else if (**data == '-' || (**data >= '0' && **data <= '9'))
-	{
-		// Negative?
-		bool neg = **data == '-';
-		if (neg) (*data)++;
+    // Is it a number?
+    else if (**data == '-' || (**data >= '0' && **data <= '9'))
+    {
+        // Negative?
+        bool neg = **data == '-';
+        if (neg) (*data)++;
 
-		double number = 0.0;
+        double number = 0.0;
 
-		// Parse the whole part of the number - only if it wasn't 0
-		if (**data == '0')
-			(*data)++;
-		else if (**data >= '1' && **data <= '9')
-			number = JSON::ParseInt(data);
-		else
+        // Parse the whole part of the number - only if it wasn't 0
+        if (**data == '0')
+            (*data)++;
+        else if (**data >= '1' && **data <= '9')
+            number = JSON::ParseInt(data);
+        else
             throw JSONException();
 
-		// Could be a decimal now...
-		if (**data == '.')
-		{
-			(*data)++;
+        // Could be a decimal now...
+        if (**data == '.')
+        {
+            (*data)++;
 
-			// Not get any digits?
-			if (!(**data >= '0' && **data <= '9'))
+            // Not get any digits?
+            if (!(**data >= '0' && **data <= '9'))
                 throw JSONException();
 
-			// Find the decimal and sort the decimal place out
-			// Use ParseDecimal as ParseInt won't work with decimals less than 0.1
-			// thanks to Javier Abadia for the report & fix
-			double decimal = JSON::ParseDecimal(data);
+            // Find the decimal and sort the decimal place out
+            // Use ParseDecimal as ParseInt won't work with decimals less than 0.1
+            // thanks to Javier Abadia for the report & fix
+            double decimal = JSON::ParseDecimal(data);
 
-			// Save the number
-			number += decimal;
-		}
+            // Save the number
+            number += decimal;
+        }
 
-		// Could be an exponent now...
-		if (**data == 'E' || **data == 'e')
-		{
-			(*data)++;
+        // Could be an exponent now...
+        if (**data == 'E' || **data == 'e')
+        {
+            (*data)++;
 
-			// Check signage of expo
-			bool neg_expo = false;
-			if (**data == '-' || **data == '+')
-			{
-				neg_expo = **data == '-';
-				(*data)++;
-			}
+            // Check signage of expo
+            bool neg_expo = false;
+            if (**data == '-' || **data == '+')
+            {
+                neg_expo = **data == '-';
+                (*data)++;
+            }
 
-			// Not get any digits?
-			if (!(**data >= '0' && **data <= '9'))
+            // Not get any digits?
+            if (!(**data >= '0' && **data <= '9'))
                 throw JSONException();
 
-			// Sort the expo out
-			double expo = JSON::ParseInt(data);
-			for (double i = 0.0; i < expo; i++)
-				number = neg_expo ? (number / 10.0) : (number * 10.0);
-		}
+            // Sort the expo out
+            double expo = JSON::ParseInt(data);
+            for (double i = 0.0; i < expo; i++)
+                number = neg_expo ? (number / 10.0) : (number * 10.0);
+        }
 
-		// Was it neg?
-		if (neg) number *= -1;
+        // Was it neg?
+        if (neg) number *= -1;
 
-		return JSONValue(number);
-	}
+        return JSONValue(number);
+    }
 
-	// An object?
-	else if (**data == '{')
-	{
-		JSONObject object;
+    // An object?
+    else if (**data == '{')
+    {
+        JSONObject object;
 
-		(*data)++;
+        (*data)++;
 
-		while (**data != 0)
-		{
-			// Whitespace at the start?
-			if (!JSON::SkipWhitespace(data))
+        while (**data != 0)
+        {
+            // Whitespace at the start?
+            if (!JSON::SkipWhitespace(data))
                 throw JSONException();
 
-			// Special case - empty object
-			if (object.size() == 0 && **data == '}')
-			{
-				(*data)++;
-				return JSONValue(object);
-			}
+            // Special case - empty object
+            if (object.size() == 0 && **data == '}')
+            {
+                (*data)++;
+                return JSONValue(object);
+            }
 
-			// We want a string now...
-			std::string name;
-			if (!JSON::ExtractString(&(++(*data)), name))
+            // We want a string now...
+            std::string name;
+            if (!JSON::ExtractString(&(++(*data)), name))
                 throw JSONException();
 
-			// More whitespace?
-			if (!JSON::SkipWhitespace(data))
+            // More whitespace?
+            if (!JSON::SkipWhitespace(data))
                 throw JSONException();
 
-			// Need a : now
-			if (*((*data)++) != ':')
+            // Need a : now
+            if (*((*data)++) != ':')
                 throw JSONException();
 
-			// More whitespace?
-			if (!JSON::SkipWhitespace(data))
+            // More whitespace?
+            if (!JSON::SkipWhitespace(data))
                 throw JSONException();
 
-			// The value is here
-			JSONValue value = Parse(data);
+            // The value is here
+            JSONValue value = Parse(data);
 
-			// Add the name:value
-			object[name] = value;
+            // Add the name:value
+            object[name] = value;
 
-			// More whitespace?
-			if (!JSON::SkipWhitespace(data))
+            // More whitespace?
+            if (!JSON::SkipWhitespace(data))
                 throw JSONException();
 
-			// End of object?
-			if (**data == '}')
-			{
-				(*data)++;
-				return JSONValue(object);
-			}
+            // End of object?
+            if (**data == '}')
+            {
+                (*data)++;
+                return JSONValue(object);
+            }
 
-			// Want a , now
-			if (**data != ',')
+            // Want a , now
+            if (**data != ',')
                 throw JSONException();
 
-			(*data)++;
-		}
+            (*data)++;
+        }
 
-		// Only here if we ran out of data
+        // Only here if we ran out of data
         throw JSONException();
-	}
+    }
 
-	// An array?
-	else if (**data == '[')
-	{
-		JSONArray array;
+    // An array?
+    else if (**data == '[')
+    {
+        JSONArray array;
 
-		(*data)++;
+        (*data)++;
 
-		while (**data != 0)
-		{
-			// Whitespace at the start?
-			if (!JSON::SkipWhitespace(data))
+        while (**data != 0)
+        {
+            // Whitespace at the start?
+            if (!JSON::SkipWhitespace(data))
                 throw JSONException();
 
-			// Special case - empty array
-			if (array.size() == 0 && **data == ']')
-			{
-				(*data)++;
-				return JSONValue(array);
-			}
+            // Special case - empty array
+            if (array.size() == 0 && **data == ']')
+            {
+                (*data)++;
+                return JSONValue(array);
+            }
 
-			// Get the value
-			JSONValue value = Parse(data);
+            // Get the value
+            JSONValue value = Parse(data);
 
-			// Add the value
-			array.push_back(value);
+            // Add the value
+            array.push_back(value);
 
-			// More whitespace?
-			if (!JSON::SkipWhitespace(data))
+            // More whitespace?
+            if (!JSON::SkipWhitespace(data))
                 throw JSONException();
 
-			// End of array?
-			if (**data == ']')
-			{
-				(*data)++;
-				return JSONValue(array);
-			}
+            // End of array?
+            if (**data == ']')
+            {
+                (*data)++;
+                return JSONValue(array);
+            }
 
-			// Want a , now
-			if (**data != ',')
+            // Want a , now
+            if (**data != ',')
                 throw JSONException();
 
-			(*data)++;
-		}
+            (*data)++;
+        }
 
-		// Only here if we ran out of data
+        // Only here if we ran out of data
         throw JSONException();
-	}
+    }
 
-	// Ran out of possibilites, it's bad!
-	else
-	{
+    // Ran out of possibilites, it's bad!
+    else
+    {
         throw JSONException();
-	}
+    }
 }
 
 /**
@@ -260,7 +260,7 @@ JSONValue JSONValue::Parse(const char **data)
  */
 JSONValue::JSONValue(/*NULL*/)
 {
-	type = JSONType_Null;
+    type = JSONType_Null;
 }
 
 /**
@@ -272,8 +272,8 @@ JSONValue::JSONValue(/*NULL*/)
  */
 JSONValue::JSONValue(const char *m_char_value)
 {
-	type = JSONType_String;
-	string_value = std::string(m_char_value);
+    type = JSONType_String;
+    string_value = std::string(m_char_value);
 }
 
 /**
@@ -285,8 +285,8 @@ JSONValue::JSONValue(const char *m_char_value)
  */
 JSONValue::JSONValue(const std::string &m_string_value)
 {
-	type = JSONType_String;
-	string_value = m_string_value;
+    type = JSONType_String;
+    string_value = m_string_value;
 }
 
 /**
@@ -298,8 +298,8 @@ JSONValue::JSONValue(const std::string &m_string_value)
  */
 JSONValue::JSONValue(bool m_bool_value)
 {
-	type = JSONType_Bool;
-	bool_value = m_bool_value;
+    type = JSONType_Bool;
+    bool_value = m_bool_value;
 }
 
 /**
@@ -311,8 +311,8 @@ JSONValue::JSONValue(bool m_bool_value)
  */
 JSONValue::JSONValue(double m_number_value)
 {
-	type = JSONType_Number;
-	number_value = m_number_value;
+    type = JSONType_Number;
+    number_value = m_number_value;
 }
 
 /**
@@ -324,8 +324,8 @@ JSONValue::JSONValue(double m_number_value)
  */
 JSONValue::JSONValue(int m_integer_value)
 {
-	type = JSONType_Number;
-	number_value = (double) m_integer_value;
+    type = JSONType_Number;
+    number_value = (double) m_integer_value;
 }
 
 /**
@@ -337,8 +337,8 @@ JSONValue::JSONValue(int m_integer_value)
  */
 JSONValue::JSONValue(const JSONArray &m_array_value)
 {
-	type = JSONType_Array;
-	array_value = m_array_value;
+    type = JSONType_Array;
+    array_value = m_array_value;
 }
 
 /**
@@ -350,8 +350,8 @@ JSONValue::JSONValue(const JSONArray &m_array_value)
  */
 JSONValue::JSONValue(const JSONObject &m_object_value)
 {
-	type = JSONType_Object;
-	object_value = m_object_value;
+    type = JSONType_Object;
+    object_value = m_object_value;
 }
 
 /**
@@ -363,7 +363,7 @@ JSONValue::JSONValue(const JSONObject &m_object_value)
  */
 bool JSONValue::IsNull() const
 {
-	return type == JSONType_Null;
+    return type == JSONType_Null;
 }
 
 /**
@@ -375,7 +375,7 @@ bool JSONValue::IsNull() const
  */
 bool JSONValue::IsString() const
 {
-	return type == JSONType_String;
+    return type == JSONType_String;
 }
 
 /**
@@ -387,7 +387,7 @@ bool JSONValue::IsString() const
  */
 bool JSONValue::IsBool() const
 {
-	return type == JSONType_Bool;
+    return type == JSONType_Bool;
 }
 
 /**
@@ -399,7 +399,7 @@ bool JSONValue::IsBool() const
  */
 bool JSONValue::IsNumber() const
 {
-	return type == JSONType_Number;
+    return type == JSONType_Number;
 }
 
 /**
@@ -411,7 +411,7 @@ bool JSONValue::IsNumber() const
  */
 bool JSONValue::IsArray() const
 {
-	return type == JSONType_Array;
+    return type == JSONType_Array;
 }
 
 /**
@@ -423,7 +423,7 @@ bool JSONValue::IsArray() const
  */
 bool JSONValue::IsObject() const
 {
-	return type == JSONType_Object;
+    return type == JSONType_Object;
 }
 
 /**
@@ -436,7 +436,7 @@ bool JSONValue::IsObject() const
  */
 const std::string &JSONValue::AsString() const
 {
-	return string_value;
+    return string_value;
 }
 
 /**
@@ -449,7 +449,7 @@ const std::string &JSONValue::AsString() const
  */
 bool JSONValue::AsBool() const
 {
-	return bool_value;
+    return bool_value;
 }
 
 /**
@@ -462,7 +462,7 @@ bool JSONValue::AsBool() const
  */
 double JSONValue::AsNumber() const
 {
-	return number_value;
+    return number_value;
 }
 
 /**
@@ -475,7 +475,7 @@ double JSONValue::AsNumber() const
  */
 const JSONArray &JSONValue::AsArray() const
 {
-	return array_value;
+    return array_value;
 }
 
 /**
@@ -488,7 +488,7 @@ const JSONArray &JSONValue::AsArray() const
  */
 const JSONObject &JSONValue::AsObject() const
 {
-	return object_value;
+    return object_value;
 }
 
 /**
@@ -502,15 +502,15 @@ const JSONObject &JSONValue::AsObject() const
  */
 std::size_t JSONValue::CountChildren() const
 {
-	switch (type)
-	{
-		case JSONType_Array:
-			return array_value.size();
-		case JSONType_Object:
-			return object_value.size();
-		default:
-			return 0;
-	}
+    switch (type)
+    {
+        case JSONType_Array:
+            return array_value.size();
+        case JSONType_Object:
+            return object_value.size();
+        default:
+            return 0;
+    }
 }
 
 /**
@@ -523,14 +523,14 @@ std::size_t JSONValue::CountChildren() const
  */
 bool JSONValue::HasChild(std::size_t index) const
 {
-	if (type == JSONType_Array)
-	{
-		return index < array_value.size();
-	}
-	else
-	{
-		return false;
-	}
+    if (type == JSONType_Array)
+    {
+        return index < array_value.size();
+    }
+    else
+    {
+        return false;
+    }
 }
 
 /**
@@ -544,14 +544,14 @@ bool JSONValue::HasChild(std::size_t index) const
  */
 const JSONValue &JSONValue::Child(std::size_t index) const
 {
-	if (index < array_value.size())
-	{
-		return array_value[index];
-	}
-	else
-	{
+    if (index < array_value.size())
+    {
+        return array_value[index];
+    }
+    else
+    {
         throw JSONException();
-	}
+    }
 }
 
 /**
@@ -564,14 +564,14 @@ const JSONValue &JSONValue::Child(std::size_t index) const
  */
 bool JSONValue::HasChild(const std::string &name) const
 {
-	if (type == JSONType_Object)
-	{
-		return object_value.find(name) != object_value.end();
-	}
-	else
-	{
-		return false;
-	}
+    if (type == JSONType_Object)
+    {
+        return object_value.find(name) != object_value.end();
+    }
+    else
+    {
+        return false;
+    }
 }
 
 /**
@@ -585,15 +585,15 @@ bool JSONValue::HasChild(const std::string &name) const
  */
 const JSONValue &JSONValue::Child(const std::string &name) const
 {
-	JSONObject::const_iterator it = object_value.find(name);
-	if (it != object_value.end())
-	{
-		return it->second;
-	}
-	else
-	{
+    JSONObject::const_iterator it = object_value.find(name);
+    if (it != object_value.end())
+    {
+        return it->second;
+    }
+    else
+    {
         throw JSONException();
-	}
+    }
 }
 
 /**
@@ -606,20 +606,20 @@ const JSONValue &JSONValue::Child(const std::string &name) const
  */
 std::vector<std::string> JSONValue::ObjectKeys() const
 {
-	std::vector<std::string> keys;
+    std::vector<std::string> keys;
 
-	if (type == JSONType_Object)
-	{
-		JSONObject::const_iterator iter = object_value.begin();
-		while (iter != object_value.end())
-		{
-			keys.push_back(iter->first);
+    if (type == JSONType_Object)
+    {
+        JSONObject::const_iterator iter = object_value.begin();
+        while (iter != object_value.end())
+        {
+            keys.push_back(iter->first);
 
-			iter++;
-		}
-	}
+            iter++;
+        }
+    }
 
-	return keys;
+    return keys;
 }
 
 /**
@@ -633,8 +633,8 @@ std::vector<std::string> JSONValue::ObjectKeys() const
  */
 std::string JSONValue::Stringify(bool const prettyprint) const
 {
-	size_t const indentDepth = prettyprint ? 1 : 0;
-	return StringifyImpl(indentDepth);
+    size_t const indentDepth = prettyprint ? 1 : 0;
+    return StringifyImpl(indentDepth);
 }
 
 
@@ -649,75 +649,75 @@ std::string JSONValue::Stringify(bool const prettyprint) const
  */
 std::string JSONValue::StringifyImpl(size_t const indentDepth) const
 {
-	std::string ret_string;
-	size_t const indentDepth1 = indentDepth ? indentDepth + 1 : 0;
-	std::string const indentStr = Indent(indentDepth);
-	std::string const indentStr1 = Indent(indentDepth1);
+    std::string ret_string;
+    size_t const indentDepth1 = indentDepth ? indentDepth + 1 : 0;
+    std::string const indentStr = Indent(indentDepth);
+    std::string const indentStr1 = Indent(indentDepth1);
 
-	switch (type)
-	{
-		case JSONType_Null:
-			ret_string = "null";
-			break;
+    switch (type)
+    {
+        case JSONType_Null:
+            ret_string = "null";
+            break;
 
-		case JSONType_String:
-			ret_string = StringifyString(string_value);
-			break;
+        case JSONType_String:
+            ret_string = StringifyString(string_value);
+            break;
 
-		case JSONType_Bool:
-			ret_string = bool_value ? "true" : "false";
-			break;
+        case JSONType_Bool:
+            ret_string = bool_value ? "true" : "false";
+            break;
 
-		case JSONType_Number:
-		{
-			if (isinf(number_value) || isnan(number_value))
-				ret_string = "null";
-			else
-			{
-				std::stringstream ss;
-				ss.precision(15);
-				ss << number_value;
-				ret_string = ss.str();
-			}
-			break;
-		}
+        case JSONType_Number:
+        {
+            if (isinf(number_value) || isnan(number_value))
+                ret_string = "null";
+            else
+            {
+                std::stringstream ss;
+                ss.precision(15);
+                ss << number_value;
+                ret_string = ss.str();
+            }
+            break;
+        }
 
-		case JSONType_Array:
-		{
-			ret_string = indentDepth ? "[\n" + indentStr1 : "[";
-			JSONArray::const_iterator iter = array_value.begin();
-			while (iter != array_value.end())
-			{
-				ret_string += iter->StringifyImpl(indentDepth1);
+        case JSONType_Array:
+        {
+            ret_string = indentDepth ? "[\n" + indentStr1 : "[";
+            JSONArray::const_iterator iter = array_value.begin();
+            while (iter != array_value.end())
+            {
+                ret_string += iter->StringifyImpl(indentDepth1);
 
-				// Not at the end - add a separator
-				if (++iter != array_value.end())
-					ret_string += ",";
-			}
-			ret_string += indentDepth ? "\n" + indentStr + "]" : "]";
-			break;
-		}
+                // Not at the end - add a separator
+                if (++iter != array_value.end())
+                    ret_string += ",";
+            }
+            ret_string += indentDepth ? "\n" + indentStr + "]" : "]";
+            break;
+        }
 
-		case JSONType_Object:
-		{
-			ret_string = indentDepth ? "{\n" + indentStr1 : "{";
-			JSONObject::const_iterator iter = object_value.begin();
-			while (iter != object_value.end())
-			{
-				ret_string += StringifyString((*iter).first);
-				ret_string += ":";
-				ret_string += iter->second.StringifyImpl(indentDepth1);
+        case JSONType_Object:
+        {
+            ret_string = indentDepth ? "{\n" + indentStr1 : "{";
+            JSONObject::const_iterator iter = object_value.begin();
+            while (iter != object_value.end())
+            {
+                ret_string += StringifyString((*iter).first);
+                ret_string += ":";
+                ret_string += iter->second.StringifyImpl(indentDepth1);
 
-				// Not at the end - add a separator
-				if (++iter != object_value.end())
-					ret_string += ",";
-			}
-			ret_string += indentDepth ? "\n" + indentStr + "}" : "}";
-			break;
-		}
-	}
+                // Not at the end - add a separator
+                if (++iter != object_value.end())
+                    ret_string += ",";
+            }
+            ret_string += indentDepth ? "\n" + indentStr + "}" : "}";
+            break;
+        }
+    }
 
-	return ret_string;
+    return ret_string;
 }
 
 /**
