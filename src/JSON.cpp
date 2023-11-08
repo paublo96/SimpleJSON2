@@ -22,83 +22,47 @@
  * THE SOFTWARE.
  */
 
+#include <string>
+#include <locale>
+#include <codecvt>
+#include <iostream>
+
 #include "JSON.h"
 
-/**
- * Blocks off the public constructor
- *
- * @access private
- *
- */
-JSON::JSON()
+// Pulled from cppreference codecvt page
+// utility wrapper to adapt locale-bound facets for string/wbuffer convert
+template<class Facet>
+struct deletable_facet : Facet
 {
-}
+    template<class... Args>
+    deletable_facet(Args&&... args) : Facet(std::forward<Args>(args)...) {}
+    ~deletable_facet() {}
+};
 
 /**
  * Parses a complete JSON encoded string
- * This is just a wrapper around the UNICODE Parse().
  *
  * @access public
  *
- * @param char* data The JSON text
+ * @param std::string data The JSON text
  *
- * @return JSONValue* Returns a JSON Value representing the root, or NULL on error
+ * @return JSONValue Returns a JSON Value representing the root,
+ #         or throw JSONException on error
  */
-JSONValue *JSON::Parse(const char *data)
+JSONValue JSON::Parse(const std::string &data)
 {
-	size_t length = strlen(data) + 1;
-	wchar_t *w_data = (wchar_t*)malloc(length * sizeof(wchar_t));
-	
-	#if defined(WIN32) && !defined(__GNUC__)
-		size_t ret_value = 0;
-		if (mbstowcs_s(&ret_value, w_data, length, data, length) != 0)
-		{
-			free(w_data);
-			return NULL;
-		}
-	#elif defined(ANDROID)
-		// mbstowcs seems to misbehave on android
-		for(size_t i = 0; i<length; i++)
-			w_data[i] = (wchar_t)data[i];
-	#else
-		if (mbstowcs(w_data, data, length) == (size_t)-1)
-		{
-			free(w_data);
-			return NULL;
-		}
-	#endif
-	
-	JSONValue *value = JSON::Parse(w_data);
-	free(w_data);
-	return value;
-}
+    const char *data_ptr = data.c_str();
 
-/**
- * Parses a complete JSON encoded string (UNICODE input version)
- *
- * @access public
- *
- * @param wchar_t* data The JSON text
- *
- * @return JSONValue* Returns a JSON Value representing the root, or NULL on error
- */
-JSONValue *JSON::Parse(const wchar_t *data)
-{
-	// Skip any preceding whitespace, end of data = no JSON = fail
-	if (!SkipWhitespace(&data))
-		return NULL;
+    // Skip any preceding whitespace, end of data = no JSON = fail
+	if (!SkipWhitespace(&data_ptr))
+        throw JSONException();
 
 	// We need the start of a value here now...
-	JSONValue *value = JSONValue::Parse(&data);
-	if (value == NULL)
-		return NULL;
+	JSONValue value = JSONValue::Parse(&data_ptr);
 	
 	// Can be white space now and should be at the end of the string then...
-	if (SkipWhitespace(&data))
-	{
-		delete value;
-		return NULL;
-	}
+	if (SkipWhitespace(&data_ptr))
+        throw JSONException();
 	
 	// We're now at the end of the string
 	return value;
@@ -109,16 +73,13 @@ JSONValue *JSON::Parse(const wchar_t *data)
  *
  * @access public
  *
- * @param JSONValue* value The root value
+ * @param JSONValue value The root value
  *
- * @return std::wstring Returns a JSON encoded string representation of the given value
+ * @return std::string Returns a JSON encoded string representation of the given value
  */
-std::wstring JSON::Stringify(const JSONValue *value)
+std::string JSON::Stringify(const JSONValue &value)
 {
-	if (value != NULL)
-		return value->Stringify();
-	else
-		return L"";
+    return value.Stringify();
 }
 
 /**
@@ -126,13 +87,13 @@ std::wstring JSON::Stringify(const JSONValue *value)
  *
  * @access protected
  *
- * @param wchar_t** data Pointer to a wchar_t* that contains the JSON text
+ * @param char** data Pointer to a char* that contains the JSON text
  *
  * @return bool Returns true if there is more data, or false if the end of the text was reached
  */
-bool JSON::SkipWhitespace(const wchar_t **data)
+bool JSON::SkipWhitespace(const char **data)
 {
-	while (**data != 0 && (**data == L' ' || **data == L'\t' || **data == L'\r' || **data == L'\n'))
+	while (**data != 0 && (**data == ' ' || **data == '\t' || **data == '\r' || **data == '\n'))
 		(*data)++;
 	
 	return **data != 0;
@@ -144,22 +105,22 @@ bool JSON::SkipWhitespace(const wchar_t **data)
  *
  * @access protected
  *
- * @param wchar_t** data Pointer to a wchar_t* that contains the JSON text
- * @param std::wstring& str Reference to a std::wstring to receive the extracted string
+ * @param char** data Pointer to a char* that contains the JSON text
+ * @param std::string& str Reference to a std::string to receive the extracted string
  *
  * @return bool Returns true on success, false on failure
  */
-bool JSON::ExtractString(const wchar_t **data, std::wstring &str)
+bool JSON::ExtractString(const char **data, std::string &str)
 {
-	str = L"";
+	str = "";
 	
 	while (**data != 0)
 	{
 		// Save the char so we can change it if need be
-		wchar_t next_char = **data;
+        char next_char = **data;
 		
 		// Escaping something?
-		if (next_char == L'\\')
+		if (next_char == '\\')
 		{
 			// Move over the escape char
 			(*data)++;
@@ -167,43 +128,65 @@ bool JSON::ExtractString(const wchar_t **data, std::wstring &str)
 			// Deal with the escaped char
 			switch (**data)
 			{
-				case L'"': next_char = L'"'; break;
-				case L'\\': next_char = L'\\'; break;
-				case L'/': next_char = L'/'; break;
-				case L'b': next_char = L'\b'; break;
-				case L'f': next_char = L'\f'; break;
-				case L'n': next_char = L'\n'; break;
-				case L'r': next_char = L'\r'; break;
-				case L't': next_char = L'\t'; break;
-				case L'u':
+				case '"': next_char = '"'; break;
+				case '\\': next_char = '\\'; break;
+				case '/': next_char = '/'; break;
+				case 'b': next_char = '\b'; break;
+				case 'f': next_char = '\f'; break;
+				case 'n': next_char = '\n'; break;
+				case 'r': next_char = '\r'; break;
+				case 't': next_char = '\t'; break;
+				case 'u':
 				{
-					// We need 5 chars (4 hex + the 'u') or its not valid
-					if (!simplejson_wcsnlen(*data, 5))
-						return false;
-					
-					// Deal with the chars
-					next_char = 0;
-					for (int i = 0; i < 4; i++)
-					{
-						// Do it first to move off the 'u' and leave us on the
-						// final hex digit as we move on by one later on
-						(*data)++;
-						
-						next_char <<= 4;
-						
-						// Parse the hex digit
-						if (**data >= '0' && **data <= '9')
-							next_char |= (**data - '0');
-						else if (**data >= 'A' && **data <= 'F')
-							next_char |= (10 + (**data - 'A'));
-						else if (**data >= 'a' && **data <= 'f')
-							next_char |= (10 + (**data - 'a'));
-						else
-						{
-							// Invalid hex digit = invalid JSON
-							return false;
-						}
-					}
+                    (*data)--;
+
+                    std::u16string unicode_chars;
+                    while (**data == '\\' && *((*data)+1) == 'u')
+                    {
+                        (*data)++;
+
+                        // We need 5 chars (4 hex + the 'u') or its not valid
+					    if (!simplejson_strnlen(*data, 5))
+					    	return false;
+					    
+					    // Deal with the chars
+                        char16_t unicode_char = 0;
+					    for (int i = 0; i < 4; i++)
+					    {
+					    	// Do it first to move off the 'u' and leave us on the
+					    	// final hex digit as we move on by one later on
+					    	(*data)++;
+					    	
+					    	unicode_char <<= 4;
+					    	
+					    	// Parse the hex digit
+					    	if (**data >= '0' && **data <= '9')
+					    		unicode_char |= (**data - '0');
+					    	else if (**data >= 'A' && **data <= 'F')
+					    		unicode_char |= (10 + (**data - 'A'));
+					    	else if (**data >= 'a' && **data <= 'f')
+					    		unicode_char |= (10 + (**data - 'a'));
+					    	else
+					    	{
+					    		// Invalid hex digit = invalid JSON
+					    		return false;
+					    	}
+					    }
+                        unicode_chars += unicode_char;
+                        (*data)++;
+                    }
+                    (*data)--;
+
+                    std::wstring_convert<deletable_facet<
+                        std::codecvt<char16_t, char, std::mbstate_t>>,
+                                         char16_t> convert;
+                    std::string utf8_chars = convert.to_bytes(unicode_chars);
+                    // If failed to parse utf-16, give up
+                    if (utf8_chars.size() == 0) return false;
+                    for (size_t i = 0; i < utf8_chars.size()-1; i++)
+                        str += utf8_chars[i];
+                    next_char = *utf8_chars.rbegin();
+                    
 					break;
 				}
 				
@@ -214,18 +197,11 @@ bool JSON::ExtractString(const wchar_t **data, std::wstring &str)
 		}
 		
 		// End of the string?
-		else if (next_char == L'"')
+		else if (next_char == '"')
 		{
 			(*data)++;
 			str.reserve(); // Remove unused capacity
 			return true;
-		}
-		
-		// Disallowed char?
-		else if (next_char < L' ' && next_char != L'\t')
-		{
-			// SPEC Violation: Allow tabs due to real world cases
-			return false;
 		}
 		
 		// Add the next char
@@ -244,11 +220,11 @@ bool JSON::ExtractString(const wchar_t **data, std::wstring &str)
  *
  * @access protected
  *
- * @param wchar_t** data Pointer to a wchar_t* that contains the JSON text
+ * @param char** data Pointer to a char* that contains the JSON text
  *
  * @return double Returns the double value of the number found
  */
-double JSON::ParseInt(const wchar_t **data)
+double JSON::ParseInt(const char **data)
 {
 	double integer = 0;
 	while (**data != 0 && **data >= '0' && **data <= '9')
@@ -262,19 +238,19 @@ double JSON::ParseInt(const wchar_t **data)
  *
  * @access protected
  *
- * @param wchar_t** data Pointer to a wchar_t* that contains the JSON text
+ * @param char** data Pointer to a char* that contains the JSON text
  *
  * @return double Returns the double value of the decimal found
  */
-double JSON::ParseDecimal(const wchar_t **data)
+double JSON::ParseDecimal(const char **data)
 {
 	double decimal = 0.0;
-  double factor = 0.1;
+    double factor = 0.1;
 	while (**data != 0 && **data >= '0' && **data <= '9')
-  {
-    int digit = (*(*data)++ - '0');
+    {
+        int digit = (*(*data)++ - '0');
 		decimal = decimal + digit * factor;
-    factor *= 0.1;
-  }
+        factor *= 0.1;
+    }
 	return decimal;
 }

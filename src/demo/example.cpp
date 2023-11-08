@@ -31,7 +31,7 @@
 using namespace std;
 
 // Just some sample JSON text, feel free to change but could break demo
-const wchar_t* EXAMPLE = L"\
+const char* EXAMPLE = "\
 { \
 	\"string_name\" : \"string\tvalue and a \\\"quote\\\" and a unicode char \\u00BE and a c:\\\\path\\\\ or a \\/unix\\/path\\/ :D\", \
 	\"bool_name\" : true, \
@@ -50,69 +50,68 @@ const wchar_t* EXAMPLE = L"\
 void example1()
 {
 	// Parse example data
-	JSONValue *value = JSON::Parse(EXAMPLE);
+    JSONValue value;
+    try
+    {
+        value = JSON::Parse(EXAMPLE);
+    }
+    catch (const JSONException &e)
+    {
+		print_out("Example code failed to parse, did you change it?\r\n");
+        return;
+    }
 
-	// Did it go wrong?
-	if (value == NULL)
+	// Retrieve the main object
+	JSONObject root;
+	if (value.IsObject() == false)
 	{
-		print_out(L"Example code failed to parse, did you change it?\r\n");
+		print_out("The root element is not an object, did you change the example?\r\n");
 	}
 	else
 	{
-		// Retrieve the main object
-		JSONObject root;
-		if (value->IsObject() == false)
+		root = value.AsObject();
+
+		// Retrieving a string
+		if (root.find("string_name") != root.end() && root["string_name"].IsString())
 		{
-			print_out(L"The root element is not an object, did you change the example?\r\n");
-		}
-		else
-		{
-			root = value->AsObject();
-
-			// Retrieving a string
-			if (root.find(L"string_name") != root.end() && root[L"string_name"]->IsString())
-			{
-				print_out(L"string_name:\r\n");
-				print_out(L"------------\r\n");
-				print_out(root[L"string_name"]->AsString().c_str());
-				print_out(L"\r\n\r\n");
-			}
-
-			// Retrieving a boolean
-			if (root.find(L"bool_second") != root.end() && root[L"bool_second"]->IsBool())
-			{
-				print_out(L"bool_second:\r\n");
-				print_out(L"------------\r\n");
-				print_out(root[L"bool_second"]->AsBool() ? L"it's true!" : L"it's false!");
-				print_out(L"\r\n\r\n");
-			}
-
-			// Retrieving an array
-			if (root.find(L"array_letters") != root.end() && root[L"array_letters"]->IsArray())
-			{
-				JSONArray array = root[L"array_letters"]->AsArray();
-				print_out(L"array_letters:\r\n");
-				print_out(L"--------------\r\n");
-				for (unsigned int i = 0; i < array.size(); i++)
-				{
-					wstringstream output;
-					output << L"[" << i << L"] => " << array[i]->Stringify() << L"\r\n";
-					print_out(output.str().c_str());
-				}
-				print_out(L"\r\n");
-			}
-
-			// Retrieving nested object
-			if (root.find(L"sub_object") != root.end() && root[L"sub_object"]->IsObject())
-			{
-				print_out(L"sub_object:\r\n");
-				print_out(L"-----------\r\n");
-				print_out(root[L"sub_object"]->Stringify().c_str());
-				print_out(L"\r\n\r\n");
-			}
+			print_out("string_name:\r\n");
+			print_out("------------\r\n");
+			print_out(root["string_name"].AsString().c_str());
+			print_out("\r\n\r\n");
 		}
 
-		delete value;
+		// Retrieving a boolean
+		if (root.find("bool_second") != root.end() && root["bool_second"].IsBool())
+		{
+			print_out("bool_second:\r\n");
+			print_out("------------\r\n");
+			print_out(root["bool_second"].AsBool() ? "it's true!" : "it's false!");
+			print_out("\r\n\r\n");
+		}
+
+		// Retrieving an array
+		if (root.find("array_letters") != root.end() && root["array_letters"].IsArray())
+		{
+			JSONArray array = root["array_letters"].AsArray();
+			print_out("array_letters:\r\n");
+			print_out("--------------\r\n");
+			for (unsigned int i = 0; i < array.size(); i++)
+			{
+				stringstream output;
+				output << "[" << i << "] => " << array[i].Stringify() << "\r\n";
+				print_out(output.str().c_str());
+			}
+			print_out("\r\n");
+		}
+
+		// Retrieving nested object
+		if (root.find("sub_object") != root.end() && root["sub_object"].IsObject())
+		{
+			print_out("sub_object:\r\n");
+			print_out("-----------\r\n");
+			print_out(root["sub_object"].Stringify().c_str());
+			print_out("\r\n\r\n");
+		}
 	}
 }
 
@@ -122,30 +121,27 @@ void example2()
 	JSONObject root;
 
 	// Adding a string
-	root[L"test_string"] = new JSONValue(L"hello world");
+	root["test_string"] = JSONValue("hello world");
 
 	// Create a random integer array
 	JSONArray array;
 	srand((unsigned)time(0));
 	for (int i = 0; i < 10; i++)
-		array.push_back(new JSONValue((double)(rand() % 100)));
-	root[L"sample_array"] = new JSONValue(array);
+		array.push_back(JSONValue((double)(rand() % 100)));
+	root["sample_array"] = JSONValue(array);
 
 	// Create a value
-	JSONValue *value = new JSONValue(root);
+	JSONValue value = JSONValue(root);
 
 	// Print it
-	print_out(value->Stringify().c_str());
-
-	// Clean up
-	delete value;
+	print_out(value.Stringify().c_str());
 }
 
 // Example 3 : compact vs. prettyprint
 void example3()
 {
-	const wchar_t* EXAMPLE3 =
-	L"{\
+	const char* EXAMPLE3 =
+	"{\
 	 \"SelectedTab\":\"Math\",\
 	 	\"Widgets\":[\
 			{\"WidgetPosition\":[0,369,800,582],\"WidgetIndex\":1,\"WidgetType\":\"WidgetCheckbox.1\"},\
@@ -160,67 +156,84 @@ void example3()
 	 }";
 
 	// Parse example data
-	JSONValue *value = JSON::Parse(EXAMPLE3);
-	if (value)
-	{
-		print_out(L"-----------\r\n");
-		print_out(value->Stringify().c_str());
-		print_out(L"\r\n");
-		print_out(L"-----------\r\n");
-		print_out(value->Stringify(true).c_str());
-		print_out(L"\r\n");
-		print_out(L"-----------\r\n");
-	}
+	JSONValue value = JSON::Parse(EXAMPLE3);
 
-	// Clean up
-	delete value;
+    print_out("-----------\r\n");
+    print_out(value.Stringify().c_str());
+    print_out("\r\n");
+    print_out("-----------\r\n");
+    print_out(value.Stringify(true).c_str());
+    print_out("\r\n");
+    print_out("-----------\r\n");
 }
 
 // Example 4 : List keys in an object.
 void example4()
 {
 	// Parse the example.
-	JSONValue *main_object = JSON::Parse(EXAMPLE);
-	if (main_object == NULL)
+	JSONValue main_object;
+    try
+    {
+        main_object = JSON::Parse(EXAMPLE);
+    }
+    catch (const JSONException &e)
+    {
+		print_out("Example code failed to parse, did you change it?\r\n");
+        return;
+    }
+
+	if (!main_object.IsObject())
 	{
-		print_out(L"Example code failed to parse, did you change it?\r\n");
-	}
-	else if (!main_object->IsObject())
-	{
-		print_out(L"Example code is not an object, did you change it?\r\n");
-		delete main_object;
+		print_out("Example code is not an object, did you change it?\r\n");
 	}
 	else
 	{
 		// Print the main object.
-		print_out(L"Main object:\r\n");
-		print_out(main_object->Stringify(true).c_str());
-		print_out(L"-----------\r\n");
+		print_out("Main object:\r\n");
+		print_out(main_object.Stringify(true).c_str());
+		print_out("-----------\r\n");
 
 		// Fetch the keys and print them out.
-		std::vector<std::wstring> keys = main_object->ObjectKeys();
+		std::vector<std::string> keys = main_object.ObjectKeys();
 
-		std::vector<std::wstring>::iterator iter = keys.begin();
+		std::vector<std::string>::iterator iter = keys.begin();
 		while (iter != keys.end())
 		{
-			print_out(L"Key: ");
+			print_out("Key: ");
 			print_out((*iter).c_str());
-			print_out(L"\r\n");
+			print_out("\r\n");
 
 			// Get the key's value.
-			JSONValue *key_value = main_object->Child((*iter).c_str());
-			if (key_value)
-			{
-				print_out(L"Value: ");
-				print_out(key_value->Stringify().c_str());
-				print_out(L"\r\n");
-				print_out(L"-----------\r\n");
-			}
+			JSONValue key_value = main_object.Child((*iter).c_str());
+
+            print_out("Value: ");
+            print_out(key_value.Stringify().c_str());
+            print_out("\r\n");
+            print_out("-----------\r\n");
 
 			// Next key.
 			iter++;
 		}
-
-		delete main_object;
 	}
+}
+
+// Example 5
+void example5()
+{
+    // Unicode strings may be escaped or included directly
+    //std::string unicode = "\"\"";
+    //std::string unicode_pt = "\"\\uF60A\"";
+    std::string unicode = "\"😊\"";
+    std::string unicode_pt = "\"\\uD83D\\uDE0A\"";
+
+    print_out(unicode.c_str());
+    print_out("\n");
+    print_out(JSON::Parse(unicode).Stringify().c_str());
+    print_out("\n");
+
+    // When escaped or unescaped unicode is parsed, it is stringified un-escaped
+    print_out(unicode_pt.c_str());
+    print_out("\n");
+    print_out(JSON::Parse(unicode_pt).Stringify().c_str());
+    print_out("\n");
 }

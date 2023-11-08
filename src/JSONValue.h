@@ -40,15 +40,13 @@ class JSONValue
 
 	public:
 		JSONValue(/*NULL*/);
-		JSONValue(const wchar_t *m_char_value);
-		JSONValue(const std::wstring &m_string_value);
+		JSONValue(const char *m_char_value);
+		JSONValue(const std::string &m_string_value);
 		JSONValue(bool m_bool_value);
 		JSONValue(double m_number_value);
 		JSONValue(int m_integer_value);
 		JSONValue(const JSONArray &m_array_value);
 		JSONValue(const JSONObject &m_object_value);
-		JSONValue(const JSONValue &m_source);
-		~JSONValue();
 
 		bool IsNull() const;
 		bool IsString() const;
@@ -57,7 +55,7 @@ class JSONValue
 		bool IsArray() const;
 		bool IsObject() const;
 
-		const std::wstring &AsString() const;
+		const std::string &AsString() const;
 		bool AsBool() const;
 		double AsNumber() const;
 		const JSONArray &AsArray() const;
@@ -65,30 +63,27 @@ class JSONValue
 
 		std::size_t CountChildren() const;
 		bool HasChild(std::size_t index) const;
-		JSONValue *Child(std::size_t index);
-		bool HasChild(const wchar_t* name) const;
-		JSONValue *Child(const wchar_t* name);
-		std::vector<std::wstring> ObjectKeys() const;
+        const JSONValue &Child(std::size_t index) const;
+        bool HasChild(const std::string &name) const;
+        const JSONValue &Child(const std::string &name) const;
+		std::vector<std::string> ObjectKeys() const;
 
-		std::wstring Stringify(bool const prettyprint = false) const;
+		std::string Stringify(bool const prettyprint = false) const;
 	protected:
-		static JSONValue *Parse(const wchar_t **data);
+		static JSONValue Parse(const char **data);
 
 	private:
-		static std::wstring StringifyString(const std::wstring &str);
-		std::wstring StringifyImpl(size_t const indentDepth) const;
-		static std::wstring Indent(size_t depth);
+		static std::string StringifyString(const std::string &str);
+		std::string StringifyImpl(size_t const indentDepth) const;
+		static std::string Indent(size_t depth);
 
 		JSONType type;
 
-		union
-		{
-			bool bool_value;
-			double number_value;
-			std::wstring *string_value;
-			JSONArray *array_value;
-			JSONObject *object_value;
-		};
+        bool bool_value;
+        double number_value;
+        std::string string_value;
+        JSONArray array_value;
+        JSONObject object_value;
 
 };
 

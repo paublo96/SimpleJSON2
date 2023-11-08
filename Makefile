@@ -2,7 +2,7 @@
 CC=g++
 
 # Compile settings
-CFLAGS=-c -Wall
+CFLAGS=-c -Wall -std=c++11 -g
 LFLAGS=-lm
 
 # Source files
@@ -14,7 +14,7 @@ OBJECTS=$(SOURCES:src/%.cpp=obj/%.o)
 EXECUTABLE=JSONDemo
 
 all:	$(SOURCES) $(EXECUTABLE)
-	
+
 $(EXECUTABLE):	$(OBJECTS) 
 		$(CC) $(LFLAGS) $(OBJECTS) -o $@
 

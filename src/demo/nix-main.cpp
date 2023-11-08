@@ -32,10 +32,10 @@
 using namespace std;
 
 // Print out function
-void print_out(const wchar_t* output)
+void print_out(const char* output)
 {
-	wcout << output;
-	wcout.flush();
+	cout << output;
+	cout.flush();
 }
 
 // Linux entry point
@@ -57,13 +57,16 @@ int main(int argc, char **argv)
 		string results(it, end);
 
 		// Parse it, print if the test is good/bad
-		JSONValue *value = JSON::Parse(results.c_str());
-		if ((value != NULL && mode == "-v") || (value == NULL && mode == "-f"))
-			wcout << L"PASS" << endl;
-		else
-			wcout << L"FAIL" << endl;
-
-		if (value) delete value;
+        try
+        {
+            JSONValue value = JSON::Parse(results.c_str());
+            if ((mode == "-v") || (mode == "-f"))
+                cout << "PASS" << endl;
+        }
+        catch (const JSONException &e)
+        {
+			cout << "FAIL" << endl;
+        }
 	}
 
 	// Parse + echo?
@@ -76,17 +79,17 @@ int main(int argc, char **argv)
 		string results(it, end);
 
 		// Parse it & echo if it's valid
-		JSONValue *value = NULL;
-		if ((value = JSON::Parse(results.c_str())) == NULL)
-			wcout << L"Code entered is *NOT* valid.";
-		else
-		{
-			bool const prettyprint = (mode == "-p");
-			wcout << value->Stringify(prettyprint);
-		}
-		wcout << endl;
-
-		if (value) delete value;
+        try
+        {
+            JSONValue value = JSON::Parse(results);
+            bool const prettyprint = (mode == "-p");
+			cout << value.Stringify(prettyprint);
+        }
+        catch (const JSONException &e)
+        {
+			cout << "Code entered is *NOT* valid.";
+        }
+		cout << endl;
 	}
 
 	// Example ?
@@ -106,6 +109,10 @@ int main(int argc, char **argv)
 	{
 		example4();
 	}
+    else if (mode == "-ex5")
+    {
+        example5();
+    }
 
 	// Test cases?
 	else if (mode == "-t")
@@ -116,19 +123,20 @@ int main(int argc, char **argv)
 	// Help!
 	else
 	{
-		wcout << L"Usage: " << argv[0] << L" <option>" << endl;
-		wcout << endl;
-		wcout << L"\t-v\tVerify JSON string is *valid* via stdin" << endl;
-		wcout << L"\t-f\tVerify JSON string is *invalid* via stdin" << endl;
-		wcout << L"\t-e\tVerify JSON string via stdin and echo it back using Stringify()" << endl;
-		wcout << L"\t-p\tVerify JSON string via stdin and prettyprint it using Stringify(true)" << endl;
-		wcout << L"\t-ex1\tRun example 1 - Example of how to extract data from the JSONValue object" << endl;
-		wcout << L"\t-ex2\tRun example 2 - Building a JSONValue from nothing" << endl;
-		wcout << L"\t-ex3\tRun example 3 - Compact vs. prettyprint" << endl;
-		wcout << L"\t-ex4\tRun example 4 - Example of fetching the keys in an object" << endl;
-		wcout << L"\t-t\tRun test cases" << endl;
-		wcout << endl;
-		wcout << L"Only one option can be used at a time." << endl;
+		cout << "Usage: " << argv[0] << " <option>" << endl;
+		cout << endl;
+		cout << "\t-v\tVerify JSON string is *valid* via stdin" << endl;
+		cout << "\t-f\tVerify JSON string is *invalid* via stdin" << endl;
+		cout << "\t-e\tVerify JSON string via stdin and echo it back using Stringify()" << endl;
+		cout << "\t-p\tVerify JSON string via stdin and prettyprint it using Stringify(true)" << endl;
+		cout << "\t-ex1\tRun example 1 - Example of how to extract data from the JSONValue object" << endl;
+		cout << "\t-ex2\tRun example 2 - Building a JSONValue from nothing" << endl;
+		cout << "\t-ex3\tRun example 3 - Compact vs. prettyprint" << endl;
+		cout << "\t-ex4\tRun example 4 - Example of fetching the keys in an object" << endl;
+        cout << "\t-ex5\tRun example 5 - Read unescaped unicode character" << endl;
+		cout << "\t-t\tRun test cases" << endl;
+		cout << endl;
+		cout << "Only one option can be used at a time." << endl;
 	}
 
 	return 0;

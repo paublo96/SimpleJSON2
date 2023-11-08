@@ -40,25 +40,27 @@
 using namespace std;
 
 // Defined in example.cpp
-extern const wchar_t* EXAMPLE;
+extern const char* EXAMPLE;
 
 // Helper to do a quick parse check
-bool parse_check(wstring str)
+bool parse_check(string str)
 {
-	JSONValue *v = JSON::Parse(str.c_str());
-	if (v)
-	{
-		delete v;
-		return true;
-	}
-	else
-		return false;
+    try
+    {
+        JSONValue v = JSON::Parse(str.c_str());
+    }
+    catch (const JSONException &e)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 // Helper to get a files contents
-bool get_file(string filename, wstring &description, wstring &data)
+bool get_file(string filename, string &description, string &data)
 {
-	wifstream in(filename.c_str());
+	ifstream in(filename.c_str());
 	if (in.is_open() == false)
 		return false;
 
@@ -66,12 +68,12 @@ bool get_file(string filename, wstring &description, wstring &data)
 	if (description.length() > DESC_LENGTH)
 		description.resize(DESC_LENGTH);
 
-	wstring line;
-	data = L"";
+	string line;
+	data = "";
 	while (getline(in, line))
 	{
 		data += line;
-		if (!in.eof()) data += L"\n";
+		if (!in.eof()) data += "\n";
 	}
 	return true;
 }
@@ -80,9 +82,9 @@ bool get_file(string filename, wstring &description, wstring &data)
 void run_test_type(bool type)
 {
 	int test = 0;
-	wstring data = L"", name = L"";
+	string data = "", name = "";
 	ostringstream stream;
-	wostringstream wstream;
+	ostringstream wstream;
 
 	while (true)
 	{
@@ -90,27 +92,27 @@ void run_test_type(bool type)
 		stream << "test_cases/" << (type ? "pass" : "fail") << (++test) << ".json";
 		if (get_file(stream.str(), name, data) == false) break;
 
-		print_out(L"| ");
+		print_out("| ");
 
-		wstream.str(L"");
+		wstream.str("");
 		wstream.setf(ios_base::left, ios_base::adjustfield);
 		wstream << setw(DESC_LENGTH) << name;
 		print_out(wstream.str().c_str());
 
-		print_out(L" | ");
-		print_out(parse_check(data) != type ? L"failed" : L"passed");
-		print_out(L" |\r\n");
+		print_out(" | ");
+		print_out(parse_check(data) != type ? "failed" : "passed");
+		print_out(" |\r\n");
 	}
 }
 
 // Tests to run
 void run_tests()
 {
-	wstring vert_sep = wstring(L"+-") + wstring(DESC_LENGTH, L'-') + wstring(L"-+--------+\r\n");
+	string vert_sep = string("+-") + string(DESC_LENGTH, '-') + string("-+--------+\r\n");
 
 	print_out(vert_sep.c_str());
 
-	wstring header = wstring(L"| Test case") + wstring(DESC_LENGTH - 9, L' ') + wstring(L" | Result |\r\n");
+	string header = string("| Test case") + string(DESC_LENGTH - 9, ' ') + string(" | Result |\r\n");
 	print_out(header.c_str());
 
 	print_out(vert_sep.c_str());
@@ -120,73 +122,104 @@ void run_tests()
 
 	// Static test for a very precise decimal number
 	double decimal = 40.9358215191158457340974;
-	JSONValue *json_value = JSON::Parse("40.9358215191158457340974");
-	wstring test_output = wstring(L"| Very precise decimal number") + wstring(DESC_LENGTH - 27, L' ') + wstring(L" | ");
-	if (json_value && json_value->IsNumber() && json_value->AsNumber() == decimal)
+    JSONValue json_value;
+    bool success = true;
+    try
+    {
+        json_value = JSON::Parse("40.9358215191158457340974");
+    }
+    catch (const JSONException &e)
+    {
+        success = false;
+    }
+    string test_output = string("| Very precise decimal number") +
+        string(DESC_LENGTH - 27, ' ') + string(" | ");
+	if (success && json_value.IsNumber() && json_value.AsNumber() == decimal)
 	{
-		test_output += wstring(L"passed |\r\n");
-		delete json_value;
+		test_output += string("passed |\r\n");
 	}
 	else
 	{
-		test_output += wstring(L"failed |\r\n");
+		test_output += string("failed |\r\n");
 	}
 	print_out(test_output.c_str());
 
 	// Static test for a decimal number with leading zeros
 	decimal = 1.00034985734000;
-	json_value = JSON::Parse("1.00034985734000");
-	test_output = wstring(L"| Decimal number with leading zeros") + wstring(DESC_LENGTH - 33, L' ') + wstring(L" | ");
-	if (json_value && json_value->IsNumber() && json_value->AsNumber() == decimal)
+    success = true;
+    try
+    {
+        json_value = JSON::Parse("1.00034985734000");
+    }
+    catch (const JSONException &e)
+    {
+        success = false;
+    }
+	test_output = string("| Decimal number with leading zeros") +
+        string(DESC_LENGTH - 33, ' ') + string(" | ");
+	if (success && json_value.IsNumber() && json_value.AsNumber() == decimal)
 	{
-		test_output += wstring(L"passed |\r\n");
+		test_output += string("passed |\r\n");
 	}
 	else
 	{
-		test_output += wstring(L"failed |\r\n");
+		test_output += string("failed |\r\n");
 	}
 	print_out(test_output.c_str());
 
 	// Test case for issue #20.
-	test_output = wstring(L"| Testing for valid encoding of ASCII 126") + wstring(DESC_LENGTH - 39, L' ') + wstring(L" | ");
-	wstring issue_20_test = L"{\"test\":\"Value \\u00E0\"}";
-	json_value = JSON::Parse(issue_20_test.c_str());
-	if (json_value && json_value->Stringify() == issue_20_test)
+	test_output = string("| Testing for valid encoding of ASCII 126") +
+        string(DESC_LENGTH - 39, ' ') + string(" | ");
+	//string issue_20_test = "{\"test\":\"Value \\u00E0\"}";
+    //string issue_20_res  = "{\"test\":\"Value à\"}";
+	string issue_20_test = "{\"test\":\"Value \\uF60A\"}";
+    string issue_20_res  = "{\"test\":\"Value \"}";    
+    success = true;
+    try
+    {
+        json_value = JSON::Parse(issue_20_test.c_str());
+    }
+    catch (const JSONException &e)
+    {
+        success = false;
+    }
+	if (success && json_value.Stringify() == issue_20_res)
 	{
-		test_output += wstring(L"passed |\r\n");
+		test_output += string("passed |\r\n");
 	}
 	else
 	{
-		test_output += wstring(L"failed |\r\n");
+		test_output += string("failed |\r\n");
 	}
 	print_out(test_output.c_str());
 
 	// Test case for issue #24.
-	test_output = wstring(L"| Testing JSONValue passing as value") + wstring(DESC_LENGTH - 34, L' ') + wstring(L" | ");
-	JSONValue *value = JSON::Parse(EXAMPLE);
-	wstring json_check = value->Stringify();
-	JSONValue new_value(*value);
-	delete value;
+	test_output = string("| Testing JSONValue passing as value") +
+        string(DESC_LENGTH - 34, ' ') + string(" | ");
+	JSONValue value = JSON::Parse(EXAMPLE);
+	string json_check = value.Stringify();
+	JSONValue new_value(value);
 	if (new_value.Stringify() == json_check)
 	{
-		test_output += wstring(L"passed |\r\n");
+		test_output += string("passed |\r\n");
 	}
 	else
 	{
-		test_output += wstring(L"failed |\r\n");
+		test_output += string("failed |\r\n");
 	}
 	print_out(test_output.c_str());
 
 	// Test case for int initialisation of JSONValue.
-	test_output = wstring(L"| Testing JSONValue int initialisation") + wstring(DESC_LENGTH - 36, L' ') + wstring(L" | ");
+	test_output = string("| Testing JSONValue int initialisation") +
+        string(DESC_LENGTH - 36, ' ') + string(" | ");
 	JSONValue int_test = JSONValue(42);
-	if (int_test.Stringify() == L"42")
+	if (int_test.Stringify() == "42")
 	{
-		test_output += wstring(L"passed |\r\n");
+		test_output += string("passed |\r\n");
 	}
 	else
 	{
-		test_output += wstring(L"failed |\r\n");
+		test_output += string("failed |\r\n");
 	}
 	print_out(test_output.c_str());
 
